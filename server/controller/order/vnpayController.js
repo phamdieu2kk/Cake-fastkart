@@ -70,7 +70,7 @@ const vnpayController = async (req, res) => {
             vnp_TxnRef: `${generatePayID()}`,
             vnp_OrderInfo: `${req.userId}_${cartIds.join(',')}`, // <-- đây là OK
             vnp_OrderType: ProductCode.Other,
-            vnp_ReturnUrl: `http://localhost:5000/api/vnpay-return`,
+            vnp_ReturnUrl: `https://cake-fastkart.onrender.com/api/vnpay-return`,
             vnp_Locale: VnpLocale.VN,
             vnp_CreateDate: dateFormat(new Date()),
             vnp_ExpireDate: dateFormat(tomorrow),
