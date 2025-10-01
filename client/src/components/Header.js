@@ -1,18 +1,17 @@
-import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
+import Logo from './Logo';
+import { GrSearch } from 'react-icons/gr';
+import { FiUser, FiShoppingCart, FiLogOut, FiX } from 'react-icons/fi';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import { GrSearch } from 'react-icons/gr';
-import { FiUser, FiShoppingCart, FiLogOut } from 'react-icons/fi';
-import { ImProfile } from 'react-icons/im';
-import { throttle } from 'lodash';
-
-import Logo from './Logo';
 import SummaryApi from '../common';
+import { setUserDetails } from '../store/userSlice';
 import ROLE from '../common/role';
 import Context from '../context';
-import { setUserDetails } from '../store/userSlice';
-
+import productCategory from '../helpers/productCategory';
+import { Dialog, Disclosure } from '@headlessui/react';
+import { ImProfile } from 'react-icons/im';
 const Header = () => {
     const user = useSelector((state) => state?.user?.user);
     const dispatch = useDispatch();
@@ -20,58 +19,51 @@ const Header = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const [menuDisplay, setMenuDisplay] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [desktopCatOpen, setDesktopCatOpen] = useState(false);
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
     const [showHeader, setShowHeader] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
-    const [menuDisplay, setMenuDisplay] = useState(false);
-    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-
-    const dropdownRef = useRef(null);
-    const mobileSearchRef = useRef(null);
 
     const searchQuery = new URLSearchParams(location?.search).get('q') || '';
     const [search, setSearch] = useState(searchQuery);
 
-    // Throttle scroll handler để ẩn/hiện header mượt
-    const handleScroll = useCallback(
-        throttle(() => {
-            if (window.scrollY > lastScrollY) setShowHeader(false);
-            else setShowHeader(true);
-            setLastScrollY(window.scrollY);
-        }, 200),
-        [lastScrollY],
-    );
-
-    useEffect(() => {
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [handleScroll]);
-
-    // Load user từ localStorage
     useEffect(() => {
         const savedUser = localStorage.getItem('user');
         if (savedUser) dispatch(setUserDetails(JSON.parse(savedUser)));
         else dispatch(setUserDetails(null));
     }, [dispatch]);
 
-    // Click outside & ESC key cho dropdown + mobile search
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setMenuDisplay(false);
-            if (mobileSearchRef.current && !mobileSearchRef.current.contains(e.target)) setMobileSearchOpen(false);
-        };
-        const handleEsc = (e) => {
-            if (e.key === 'Escape') {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setMenuDisplay(false);
-                setMobileSearchOpen(false);
+                setDesktopCatOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('keydown', handleEsc);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleEsc);
-        };
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    // 👉 Logic ẩn/hiện header khi cuộn
+    useEffect(() => {
+        const controlHeader = () => {
+            if (window.scrollY > lastScrollY) {
+                // cuộn xuống → ẩn
+                setShowHeader(false);
+            } else {
+                // cuộn lên → hiện
+                setShowHeader(true);
+            }
+            setLastScrollY(window.scrollY);
+        };
+
+        window.addEventListener('scroll', controlHeader);
+        return () => window.removeEventListener('scroll', controlHeader);
+    }, [lastScrollY]);
 
     const handleLogout = async () => {
         try {
@@ -114,7 +106,7 @@ const Header = () => {
 
                 {/* Search desktop */}
                 <div className="justify-center flex-1 hidden md:flex">
-                    <div className="flex items-center border rounded-full px-3 py-1.5 gap-2 w-full max-w-md transition-shadow hover:shadow-md">
+                    <div className="flex items-center border rounded-full px-3 py-1.5 gap-2 w-full max-w-md">
                         <input
                             type="text"
                             placeholder="Search products"
@@ -126,9 +118,9 @@ const Header = () => {
                     </div>
                 </div>
 
-                {/* Right icons */}
+                {/* Icon bên phải */}
                 <div className="flex items-center justify-end flex-1 gap-6">
-                    {/* Mobile search */}
+                    {/* Search icon mobile */}
                     <button className="block text-2xl md:hidden" onClick={() => setMobileSearchOpen((prev) => !prev)}>
                         <GrSearch />
                     </button>
@@ -147,7 +139,7 @@ const Header = () => {
                         </div>
                     </Link>
 
-                    {/* User / login */}
+                    {/* User/Login */}
                     {user?._id ? (
                         <div ref={dropdownRef} className="relative">
                             <div
@@ -160,10 +152,8 @@ const Header = () => {
                                     <FiUser className="text-2xl" />
                                 )}
                             </div>
-
-                            {/* Dropdown menu */}
                             <div
-                                className={`absolute right-0 w-44 mt-2 bg-white border rounded shadow-lg transition-all duration-200 ease-out transform ${
+                                className={`absolute right-0 w-44 mt-2 bg-white border rounded shadow-lg transition-all duration-200 ease-out ${
                                     menuDisplay
                                         ? 'opacity-100 translate-y-0 pointer-events-auto'
                                         : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -189,14 +179,13 @@ const Header = () => {
                                 </Link>
 
                                 <button
-                                    type="button"
                                     onClick={() => {
                                         setMenuDisplay(false);
                                         handleLogout();
                                     }}
                                     className="flex items-center w-full gap-2 px-4 py-2 text-red-600 hover:bg-red-50"
                                 >
-                                    <FiLogOut /> Logout
+                                    <FiLogOut /> Đăng xuất
                                 </button>
                             </div>
                         </div>
@@ -205,17 +194,14 @@ const Header = () => {
                             to="/login"
                             className="px-6 py-2 text-white bg-[#0DA487] rounded-full hover:bg-[#0b8c73] transition-colors"
                         >
-                            Login
+                            Đăng nhập
                         </Link>
                     )}
                 </div>
 
-                {/* Mobile search input */}
+                {/* Search bar mobile */}
                 {mobileSearchOpen && (
-                    <div
-                        ref={mobileSearchRef}
-                        className="absolute left-0 w-full px-4 mt-2 transition-all duration-300 top-full md:hidden"
-                    >
+                    <div className="absolute left-0 w-full px-4 mt-2 top-full md:hidden">
                         <div className="flex items-center border rounded-full px-3 py-1.5 gap-2 bg-white shadow-md">
                             <input
                                 type="text"

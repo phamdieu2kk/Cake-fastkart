@@ -7,6 +7,7 @@ import CategroyWiseProductDisplay from '../components/CategoryWiseProductDisplay
 import addToCart from '../helpers/addToCart';
 import Context from '../context';
 import ProductPolicies from '../components/ProductPolicies';
+
 const ProductDetails = () => {
     const [data, setData] = useState({
         productName: '',
@@ -18,16 +19,20 @@ const ProductDetails = () => {
         sellingPrice: '',
         rating: 0,
     });
-    const params = useParams();
-    const [loading, setLoading] = useState(true);
-    const productImageListLoading = new Array(4).fill(null);
-    const [activeImage, setActiveImage] = useState('');
-    const [zoomImageCoordinate, setZoomImageCoordinate] = useState({ x: 0, y: 0 });
-    const [zoomImage, setZoomImage] = useState(false);
-    const { fetchUserAddToCart } = useContext(Context);
-    const navigate = useNavigate();
 
-    const fetchProductDetails = async () => {
+    const params = useParams();
+    const navigate = useNavigate();
+    const { fetchUserAddToCart } = useContext(Context);
+
+    const [loading, setLoading] = useState(true);
+    const [activeImage, setActiveImage] = useState('');
+    const [zoomImage, setZoomImage] = useState(false);
+    const [zoomImageCoordinate, setZoomImageCoordinate] = useState({ x: 0, y: 0 });
+
+    const productImageListLoading = new Array(4).fill(null);
+
+    // ----- Fetch Product Details -----
+    const fetchProductDetails = useCallback(async () => {
         setLoading(true);
         try {
             const response = await fetch(SummaryApi.productDetails.url, {
@@ -36,25 +41,26 @@ const ProductDetails = () => {
                 body: JSON.stringify({ productId: params?.id }),
             });
             const dataReponse = await response.json();
-            setData(dataReponse?.data);
-            setActiveImage(dataReponse?.data?.productImage[0]);
+            setData(dataReponse?.data || {});
+            setActiveImage(dataReponse?.data?.productImage?.[0] || '');
         } catch (err) {
             console.error(err);
         } finally {
             setLoading(false);
         }
-    };
+    }, [params?.id]);
 
     useEffect(() => {
         fetchProductDetails();
-    }, [params]);
+    }, [fetchProductDetails]);
 
-    const handleMouseEnterProduct = (imageURL) => {
+    // ----- Image Hover & Zoom -----
+    const handleMouseEnterProduct = useCallback((imageURL) => {
         setActiveImage(imageURL);
-    };
+    }, []);
 
     const handleZoomImage = useCallback((e) => {
-        if (window.innerWidth < 1024) return; // chỉ desktop mới zoom
+        if (window.innerWidth < 1024) return; // chỉ zoom desktop
         setZoomImage(true);
         const { left, top, width, height } = e.target.getBoundingClientRect();
         const x = (e.clientX - left) / width;
@@ -62,24 +68,30 @@ const ProductDetails = () => {
         setZoomImageCoordinate({ x, y });
     }, []);
 
-    const handleLeaveImageZoom = () => {
+    const handleLeaveImageZoom = useCallback(() => {
         setZoomImage(false);
-    };
+    }, []);
 
-    const handleAddToCart = async (e, id) => {
-        await addToCart(e, id);
-        fetchUserAddToCart();
-    };
+    // ----- Add to Cart & Buy Now -----
+    const handleAddToCart = useCallback(
+        async (e, id) => {
+            await addToCart(e, id);
+            fetchUserAddToCart();
+        },
+        [fetchUserAddToCart],
+    );
 
-    const handleBuyProduct = async (e, id) => {
-        await addToCart(e, id);
-        fetchUserAddToCart();
-        navigate('/cart');
-    };
+    const handleBuyProduct = useCallback(
+        async (e, id) => {
+            await addToCart(e, id);
+            fetchUserAddToCart();
+            navigate('/cart');
+        },
+        [fetchUserAddToCart, navigate],
+    );
 
     return (
         <div className="container p-4 pt-[100px] mx-auto">
-            {/* Main container responsive */}
             <div className="flex flex-col md:flex-row gap-6 min-h-[300px]">
                 {/* Images + Thumbnails */}
                 <div className="flex flex-col w-full gap-4 md:flex-row-reverse md:w-auto">
@@ -96,7 +108,6 @@ const ProductDetails = () => {
                                     onMouseMove={handleZoomImage}
                                     onMouseLeave={handleLeaveImageZoom}
                                 />
-                                {/* Zoom ảnh Desktop */}
                                 {zoomImage && (
                                     <div className="hidden lg:block absolute -right-[420px] top-0 w-[400px] h-[400px] border border-gray-300 overflow-hidden bg-white">
                                         <div
@@ -192,23 +203,24 @@ const ProductDetails = () => {
                                     className="border-2 border-red-600 rounded px-3 py-2 min-w-[120px] text-red-600 font-medium hover:bg-red-600 hover:text-white transition"
                                     onClick={(e) => handleBuyProduct(e, data?._id)}
                                 >
-                                    Buy now
+                                    Mua ngay
                                 </button>
                                 <button
                                     className="border-2 border-red-600 rounded px-3 py-2 min-w-[120px] font-medium text-white bg-red-600 hover:text-red-600 hover:bg-white transition"
                                     onClick={(e) => handleAddToCart(e, data?._id)}
                                 >
-                                    Add To Cart
+                                    Thêm vào giỏ
                                 </button>
                             </div>
 
                             {/* Description */}
                             <div>
-                                <p className="my-1 font-medium text-slate-600">Description:</p>
+                                <p className="my-1 font-medium text-slate-600">Mô tả:</p>
                                 <p>{data?.description}</p>
                             </div>
                         </>
                     )}
+
                     <div className="mt-6">
                         <ProductPolicies layout="detail" />
                     </div>
@@ -216,7 +228,7 @@ const ProductDetails = () => {
             </div>
 
             {/* Recommended Products */}
-            {data?.category && <CategroyWiseProductDisplay category={data.category} heading={'Recommended Product'} />}
+            {data?.category && <CategroyWiseProductDisplay category={data.category} heading={'Sản phẩm gợi ý'} />}
         </div>
     );
 };
