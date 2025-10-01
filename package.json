@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "glob": "^11.0.3",
+    "jscodeshift": "^17.3.0"
+  }
+}
